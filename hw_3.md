@@ -197,18 +197,16 @@ brfss_overall_health %>%
   pivot_wider(
     names_from = state,
     values_from = locations
-  )
+  ) %>% 
+  knitr::kable()
 ```
 
     ## `summarise()` has grouped output by 'year'. You can override using the `.groups` argument.
 
-    ## # A tibble: 2 × 16
-    ## # Groups:   year [2]
-    ##    year    CT    FL    MA    NC    NJ    PA    CA    CO    MD    NE    NY    OH
-    ##   <int> <int> <int> <int> <int> <int> <int> <int> <int> <int> <int> <int> <int>
-    ## 1  2002     7     7     8     7     8    10    NA    NA    NA    NA    NA    NA
-    ## 2  2010    NA    41     9    12    19     7    12     7    12    10     9     8
-    ## # … with 3 more variables: SC <int>, TX <int>, WA <int>
+| year |  CT |  FL |  MA |  NC |  NJ |  PA |  CA |  CO |  MD |  NE |  NY |  OH |  SC |  TX |  WA |
+|-----:|----:|----:|----:|----:|----:|----:|----:|----:|----:|----:|----:|----:|----:|----:|----:|
+| 2002 |   7 |   7 |   8 |   7 |   8 |  10 |  NA |  NA |  NA |  NA |  NA |  NA |  NA |  NA |  NA |
+| 2010 |  NA |  41 |   9 |  12 |  19 |   7 |  12 |   7 |  12 |  10 |   9 |   8 |   7 |  16 |  10 |
 
 Construct a dataset that is limited to Excellent responses, and
 contains, year, state, and a variable that averages the data_value
@@ -262,3 +260,84 @@ brfss_overall_health %>%
 <img src="hw_3_files/figure-gfm/unnamed-chunk-11-1.png" width="80%" />
 
 ## Problem 3
+
+``` r
+accel_data_clean =
+  read_csv("./accel_data.csv") %>% 
+  janitor::clean_names() %>% 
+  pivot_longer(
+    activity_1:activity_1440,
+    names_to = "minute",
+    names_prefix = "activity_",
+    values_to = "activity_count"
+  ) %>% 
+  mutate(
+    day = factor(day),
+    day = fct_relevel(day, "Sunday", "Monday", "Tuesday", "Wednesday",
+                                 "Thursday", "Friday", "Saturday"),
+    wkend_wkday = as.numeric(day %in% c("Saturday", "Sunday")),
+    wkend_wkday = recode(wkend_wkday, `0` = "weekday", `1` = "weekend"),
+    minute = as.numeric(minute)
+  )
+```
+
+    ## Rows: 35 Columns: 1443
+
+    ## ── Column specification ────────────────────────────────────────────────────────
+    ## Delimiter: ","
+    ## chr    (1): day
+    ## dbl (1442): week, day_id, activity.1, activity.2, activity.3, activity.4, ac...
+
+    ## 
+    ## ℹ Use `spec()` to retrieve the full column specification for this data.
+    ## ℹ Specify the column types or set `show_col_types = FALSE` to quiet this message.
+
+The cleaned dataset includes 50400 observations and 6 variables,
+including week, day, and activity count.
+
+Obvious trends are difficult to determine from the table below, but it
+is noteworthy that on Saturdays from weeks 4 and 5, there was an
+unusually low total activity count. As both totals are 1440, it is
+likely that each minute’s activity was coded as `1`.
+
+``` r
+accel_data_clean %>% 
+  group_by(week, day) %>% 
+  summarize(
+    tot_activity = sum(activity_count)
+  ) %>% 
+  pivot_wider(
+    names_from = day,
+    values_from = tot_activity
+  ) %>% 
+  knitr::kable()
+```
+
+    ## `summarise()` has grouped output by 'week'. You can override using the `.groups` argument.
+
+| week | Sunday |    Monday |  Tuesday | Wednesday | Thursday |   Friday | Saturday |
+|-----:|-------:|----------:|---------:|----------:|---------:|---------:|---------:|
+|    1 | 631105 |  78828.07 | 307094.2 |    340115 | 355923.6 | 480542.6 |   376254 |
+|    2 | 422018 | 295431.00 | 423245.0 |    440962 | 474048.0 | 568839.0 |   607175 |
+|    3 | 467052 | 685910.00 | 381507.0 |    468869 | 371230.0 | 467420.0 |   382928 |
+|    4 | 260617 | 409450.00 | 319568.0 |    434460 | 340291.0 | 154049.0 |     1440 |
+|    5 | 138421 | 389080.00 | 367824.0 |    445366 | 549658.0 | 620860.0 |     1440 |
+
+Accelerometer data allows the inspection activity over the course of the
+day. Make a single-panel plot that shows the 24-hour activity time
+courses for each day and use color to indicate day of the week. Describe
+in words any patterns or conclusions you can make based on this graph.
+
+``` r
+accel_data_clean %>% 
+  ggplot(aes(x = minute,
+             y = activity_count,
+             group = day_id,
+             color = day)) +
+  geom_line(alpha = 0.2) +
+  geom_smooth(aes(group = day), alpha = 0.3, se = FALSE)
+```
+
+    ## `geom_smooth()` using method = 'gam' and formula 'y ~ s(x, bs = "cs")'
+
+<img src="hw_3_files/figure-gfm/unnamed-chunk-14-1.png" width="80%" />
